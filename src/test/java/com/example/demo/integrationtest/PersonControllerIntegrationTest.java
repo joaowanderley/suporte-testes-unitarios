@@ -14,8 +14,12 @@ import io.restassured.specification.RequestSpecification;
 import org.junit.jupiter.api.*;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.util.Arrays;
+import java.util.List;
+
 import static io.restassured.RestAssured.given;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
@@ -62,13 +66,31 @@ class PersonControllerIntegrationTest extends AbstractIntegrationTest {
     @Test
     @Order(2)
     void testIntegrationTestGivenAPersonObject_whenUpdatePerson_ShouldReturnPersonObjectUpdated() throws JsonProcessingException {
-        Person updatedPerson = new Person("jhon", "wanderley", "maceio", "male", "joao@mail.com");
-        updatedPerson.setId(1L);
+        person.setFirstNome("asat");
+        person.setLastNome("passati");
+
         var content = given().spec(specification)
                 .contentType(TestConfigs.CONTENT_TYPE_JSON)
-                .body(updatedPerson)
+                .body(person)
                 .when()
                 .put()
+                .then()
+                .statusCode(200)
+                .extract().body().asString();
+
+        Person updatedPerson = objectMapper.readValue(content, Person.class);
+
+        assertNotNull(updatedPerson);
+        assertNotNull(updatedPerson.getFirstNome());
+    }
+
+    @Test
+    @Order(3)
+    void testIntegrationTestGivenPersonId_whenFindByIdPerson_ShouldReturnPersonObject() throws JsonProcessingException {
+        var content = given().spec(specification)
+                .pathParam("id", person.getId())
+                .when()
+                .get("{id}")
                 .then()
                 .statusCode(200)
                 .extract().body().asString();
@@ -76,6 +98,42 @@ class PersonControllerIntegrationTest extends AbstractIntegrationTest {
         person = objectMapper.readValue(content, Person.class);
 
         assertNotNull(person);
-        assertNotNull(person.getFirstNome());
+    }
+
+    @Test
+    @Order(4)
+    void testIntegrationTest_whenFindAllPerson_ShouldReturnPersonsList() throws JsonProcessingException {
+
+        Person newPerson = new Person("any", "anyLast", "anyAddress", "anyGender", "any@email.com");
+        given().spec(specification)
+                .contentType(TestConfigs.CONTENT_TYPE_JSON)
+                .body(newPerson)
+                .when()
+                .post()
+                .then()
+                .statusCode(200);
+
+        var content = given().spec(specification)
+                .when()
+                .get()
+                .then()
+                .statusCode(200)
+                .extract().body().asString();
+
+        List<Person> personList = Arrays.asList(objectMapper.readValue(content, Person[].class));
+
+        assertNotNull(personList.getFirst());
+        assertEquals(2, personList.size());
+    }
+
+    @Test
+    @Order(5)
+    void testIntegrationTestGivenPersonId_whenDeletePerson_ShouldReturnStatusNoContent() throws JsonProcessingException {
+        given().spec(specification)
+                .pathParam("id", person.getId())
+                .when()
+                .delete("{id}")
+                .then()
+                .statusCode(204);
     }
 }
